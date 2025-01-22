@@ -1,0 +1,35 @@
+---
+name: Tests
+
+"on":
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run tests
+        run: cargo test --verbose
+
+      - uses: actions/setup-python@v5
+
+      - name: Run pre-commit hooks
+        uses: pre-commit/action@v3.0.1
+        env:
+          SKIP: hadolint
+
+      - name: Run hadolint
+        uses: hadolint/hadolint-action@v3.1.0

@@ -1,11 +1,11 @@
-# bitwarden_rs_ldap
-A simple LDAP connector for [bitwarden_rs](https://github.com/dani-garcia/bitwarden_rs)
+# vaultwarden_ldap
+LDAP user invites for [vaultwarden](https://github.com/dani-garcia/vaultwarden)
 
-After configuring, run `bitwarden_rs_ldap` and it will invite any users it finds in LDAP to your `bitwarden_rs` instance.
+After configuring, run `vaultwarden_ldap` and it will invite any users it finds in LDAP to your `vaultwarden` instance. This is NOT a sync tool like the [Bitwarden Directory Connector](https://bitwarden.com/help/directory-sync/).
 
 ## Deploying
 
-This is easiest done using Docker. See the `docker-compose.yml` file in this repo for an example. If you would like to use Docker Hub rather than building, change `build: .` to `image: vividboarder/bitwarden_rs_ldap`.
+This is easiest done using Docker. See the `docker-compose.yml` file in this repo for an example. If you would like to use Docker Hub rather than building, change `build: .` to `image: vividboarder/vaultwarden_ldap`.
 
 Make sure to populate and mount your `config.toml`!
 
@@ -17,9 +17,9 @@ Configuration values are as follows:
 
 |Name|Type|Optional|Description|
 |----|----|--------|-----------|
-|`bitwarden_url`|String||The root URL for accessing `bitwarden_rs`. Eg: `https://bw.example.com`|
-|`bitwarden_admin_token`|String||The value passed as `ADMIN_TOKEN` to `bitwarden_rs`|
-|`bitwarden_root_cert_file`|String|Optional|Path to an additional der-encoded root certificate to trust. Eg. `root.cert`. If using Docker see `docker-compose.yml` for how to expose it. Defaults to `empty`|
+|`vaultwarden_url`|String||The root URL for accessing `vaultwarden`. Eg: `https://vw.example.com`|
+|`vaultwarden_admin_token`|String||The value passed as `ADMIN_TOKEN` to `vaultwarden`|
+|`vaultwarden_root_cert_file`|String|Optional|Path to an additional der-encoded root certificate to trust. Eg. `root.cert`. If using Docker see `docker-compose.yml` for how to expose it. Defaults to `empty`|
 |`ldap_host`|String||The hostname or IP address for your ldap server|
 |`ldap_scheme`|String|Optional|The that should be used to connect. `ldap` or `ldaps`. This is set by default based on SSL settings|
 |`ldap_ssl`|Boolean|Optional|Indicates if SSL should be used and if we should connect with `ldaps`. Defaults to `false`|
@@ -34,6 +34,8 @@ Configuration values are as follows:
 |`ldap_sync_interval_seconds`|Integer|Optional|Number of seconds to wait between each LDAP request. Defaults to `60`|
 |`ldap_sync_loop`|Boolean|Optional|Indicates whether or not syncing should be polled in a loop or done once. Defaults to `true`|
 
+Alternatively, instead of using `config.toml`, all values can be provided using enviroment variables prefixed with `APP_`. For example: `APP_VAULTWARDEN_URL=https://vault.example.com`
+
 ## Development
 
 This repo has a predefined set of [pre-commit](https://pre-commit.com) rules. You can install pre-commit via any means you'd like. Once your system has `pre-commit` installed, you can run `make install-hooks` to ensure the hooks will run with every commit. You can also force running all hooks with `make check`.
@@ -42,10 +44,21 @@ For those less familiar with `cargo`, you can use the `make` targets that have b
 
 ## Testing
 
-All testing is manual right now. First step is to set up Bitwarden and the LDAP server.
+There are no unit tests, but there are integration tests that require manual verification.
+
+### Integration tests
+
+Running `make itest` will spin up an ldap server with a test user, a Vaultwarden server, and then run the sync. If successful the log should show an invitation sent to the test user. If you run `make itest` again, it should show no invites sent because the user already has been invited. If you'd like to reset the testing, `make clean-itest` will clear out the Vaultwarden database and start fresh.
+
+It's also possible to test passing configs via enviornment variables by running `make itest-env`. The validation steps are the same.
+
+
+### Steps for manual testing
+
+The first step is to set up Bitwarden and the LDAP server.
 
 ```bash
-docker-compose up -d bitwarden ldap ldap_admin
+docker-compose up -d vaultwarden ldap ldap_admin
 ```
 
 1. After that, open the admin portal on http://localhost:8001 and log in using the default account info:
@@ -69,7 +82,6 @@ From there you can set up your test group and users.
 docker-compose up ldap_sync
 ```
 
-## Future
+Alternately, you can bootstrap some of this by running:
 
-* Any kind of proper logging
-* Tests
+    docker-compose -f docker-compose.yml -f itest/docker-compose.itest.yml up --build

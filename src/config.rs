@@ -17,18 +17,41 @@ pub fn get_config_path() -> String {
     }
 }
 
-/// Reads configuration from file and panics if it can't
+// Tries to read configuration from file, failing that from the environment,
+// panics if it can't
 pub fn read_config() -> Config {
+    match read_config_from_file() {
+        Ok(config) => config,
+        Err(err) => {
+            println!("{}", err);
+            match read_config_from_env() {
+                Ok(config) => config,
+                Err(err) => panic!("{}", err),
+            }
+        }
+    }
+}
+
+/// Tries to read configuration from file
+pub fn read_config_from_file() -> Result<Config, String> {
     let config_path = get_config_path();
 
-    let contents = fs::read_to_string(&config_path).unwrap_or_else(|_| {
-        panic!("Failed to open config file at {}", config_path);
-    });
-    let config: Config = toml::from_str(contents.as_str()).unwrap_or_else(|_| {
-        panic!("Failed to parse config file at {}", config_path);
-    });
+    let contents = fs::read_to_string(&config_path)
+        .map_err(|err| format!("Failed to open config file at {}: {}", config_path, err))?;
+    let config: Config = toml::from_str(contents.as_str())
+        .map_err(|err| format!("Failed to parse config file at {}: {}", config_path, err))?;
 
-    config
+    println!("Config read from file at {}", config_path);
+    Ok(config)
+}
+
+// Tries to read configuration from environment
+pub fn read_config_from_env() -> Result<Config, String> {
+    let config = envy::prefixed("APP_")
+        .from_env()
+        .map_err(|err| format!("Error parsing config from env: {}", err))?;
+    println!("Config read from environment");
+    Ok(config)
 }
 
 #[derive(Deserialize)]
@@ -36,9 +59,9 @@ pub fn read_config() -> Config {
 /// Contains all config values for LDAP syncing
 pub struct Config {
     // Bitwarden connection config
-    bitwarden_url: String,
-    bitwarden_admin_token: String,
-    bitwarden_root_cert_file: Option<String>,
+    vaultwarden_url: String,
+    vaultwarden_admin_token: String,
+    vaultwarden_root_cert_file: Option<String>,
     // LDAP Connection config
     ldap_host: String,
     ldap_scheme: Option<String>,
@@ -66,17 +89,17 @@ impl Config {
         read_config()
     }
 
-    pub fn get_bitwarden_url(&self) -> String {
-        self.bitwarden_url.clone()
+    pub fn get_vaultwarden_url(&self) -> String {
+        self.vaultwarden_url.clone()
     }
 
-    pub fn get_bitwarden_admin_token(&self) -> String {
-        self.bitwarden_admin_token.clone()
+    pub fn get_vaultwarden_admin_token(&self) -> String {
+        self.vaultwarden_admin_token.clone()
     }
 
-    pub fn get_bitwarden_root_cert_file(&self) -> String {
-        match &self.bitwarden_root_cert_file {
-            Some(bitwarden_root_cert_file) => bitwarden_root_cert_file.clone(),
+    pub fn get_vaultwarden_root_cert_file(&self) -> String {
+        match &self.vaultwarden_root_cert_file {
+            Some(vaultwarden_root_cert_file) => vaultwarden_root_cert_file.clone(),
             None => String::new(),
         }
     }
@@ -151,7 +174,7 @@ impl Config {
     pub fn get_ldap_mail_field(&self) -> String {
         match &self.ldap_mail_field {
             Some(mail_field) => mail_field.clone(),
-            None => String::from("mail").clone(),
+            None => String::from("mail"),
         }
     }
 
